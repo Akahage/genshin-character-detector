@@ -3,12 +3,12 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from ultralytics import YOLO
 from PIL import Image
 import io
-import uuid
 
 # Inisialisasi aplikasi Flask
 app = Flask(__name__)
 
 # Direktori untuk menyimpan file yang diunggah dan hasil deteksi
+# Di Render, ini akan berada di sistem file ephemeral (sementara)
 UPLOAD_FOLDER = 'uploads'
 RESULTS_FOLDER = 'results'
 
@@ -105,12 +105,11 @@ def predict():
                 im_rgb = Image.fromarray(im_bgr[..., ::-1]) 
 
                 # Buat nama file unik untuk gambar hasil
-                unique_filename = f"detected_image_{uuid.uuid4().hex}.jpg"
-                processed_image_path = os.path.join(RESULTS_FOLDER, unique_filename)
+                processed_image_path = os.path.join(RESULTS_FOLDER, "detected_image.jpg")
                 im_rgb.save(processed_image_path)
                 
                 # Buat URL untuk gambar yang diproses agar bisa diakses oleh frontend
-                processed_image_url = f'/results/{unique_filename}'
+                processed_image_url = f'/results/detected_image.jpg'
 
                 return jsonify({
                     'character_name': detected_character,
@@ -133,8 +132,13 @@ def serve_results_image(filename):
     """
     return send_from_directory(RESULTS_FOLDER, filename)
 
+# Dapatkan port dari environment variable, default ke 5000 jika tidak ada
+# Ini penting untuk deployment di Render
+port = int(os.environ.get("PORT", 5000))
+
 # Jalankan aplikasi Flask
 if __name__ == '__main__':
     # debug=True akan otomatis me-reload server saat ada perubahan kode
     # dan memberikan pesan error yang lebih detail di konsol
-    app.run(debug=True)
+    # host='0.0.0.0' agar bisa diakses dari luar container/server Render
+    app.run(debug=True, host='0.0.0.0', port=port)
